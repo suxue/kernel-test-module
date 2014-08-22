@@ -14,15 +14,19 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
-#define BUFSIZE 256
 
-static unsigned long procfs_buffer_size = 13;
-static char buffer[BUFSIZE + 1] = "hello world!\n";
+static unsigned long procfs_buffer_size = 0;
+static char *buffer;
 
 static int hello_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "%s", buffer);
+    if (procfs_buffer_size == 0) {
+	    seq_printf(m, "hello world\n");
+    } else {
+    	seq_printf(m, "%s", buffer);
+    }
     //printk( "print\n");
 	return 0;
 }
@@ -34,22 +38,34 @@ static int hello_proc_open(struct inode *inode, struct file *file)
 
 
 static ssize_t
-procfs_write(struct file *file, const char *inbuf, size_t len, loff_t * off)
+procfs_write(struct file *file, const char *inbuf, size_t len, loff_t* off)
 {
-	if ( len > BUFSIZE)	{
-		procfs_buffer_size = BUFSIZE;
-	}
-	else	{
-		procfs_buffer_size = len;
+	if (len + 1 > procfs_buffer_size) {
+        if (procfs_buffer_size != 0) {
+            kfree(buffer);
+        }
+        buffer = kmalloc(len + 1, GFP_KERNEL);
+        if (buffer == ZERO_SIZE_PTR) {
+            printk("kmalloc return ZERO_SIZE_PTR\n");
+            procfs_buffer_size = 0;
+        } else {
+            printk("allocate %lu bytes\n", len + 1);
+            procfs_buffer_size = len + 1;
+        }
 	}
 
-	if ( copy_from_user(buffer, inbuf, procfs_buffer_size) ) {
-		return -EFAULT;
-	}
-    buffer[procfs_buffer_size] = 0;
+    if (procfs_buffer_size != 0) {
+        if ( copy_from_user(buffer, inbuf, len) ) {
+            return -EFAULT;
+        }
+        buffer[len] = 0;
+	    printk(KERN_INFO "procfs_write: write %lu bytes at offset %ld\n", len, *off);
+        *off += len;
+    } else {
+        printk("failed to allocate by kmalloc\n");
+    }
 
-	printk(KERN_INFO "procfs_write: write %lu bytes\n", procfs_buffer_size);
-	return procfs_buffer_size;
+	return len;
 }
 
 static const struct file_operations hello_proc_fops = {
@@ -62,17 +78,18 @@ static const struct file_operations hello_proc_fops = {
 
 static int __init proc_hello_init(void)
 {
-        printk("init proc hello\n");
+    printk("init proc hello\n");
 	proc_create("hello", 0600, NULL, &hello_proc_fops);
 	return 0;
 }
 static void __exit cleanup_hello_module(void)
 {
   remove_proc_entry("hello",NULL);
-
+  if (procfs_buffer_size) {
+    kfree(buffer);
+  }
   printk("cleanup proc hello\n");
 }
-
 
 module_init(proc_hello_init);
 module_exit(cleanup_hello_module);
