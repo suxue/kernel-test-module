@@ -9,7 +9,7 @@
 #include <linux/kallsyms.h>
 #include <linux/list.h>
 #include <linux/ctype.h>
-#include <linux/kprobe.h>
+#include <linux/kprobes.h>
 #include <asm/uaccess.h>
 
 static char proc_entry_name[] = "hello";
@@ -18,25 +18,13 @@ static const unsigned int perm = 0644;
 struct record_head {
     struct list_head list;
     unsigned long addr;
+    unsigned int count;
     struct kprobe kprobe;
 };
 
 struct list_head record_list;
 
-static int
-pre_handler(struct kprobe *kprobe, struct pt_regs*)
-{
-
-}
-
-static void
-set_kprobe(struct kprobe *kp)
-{
-    kp->pre_handler = &pre_handler;
-    kp->post_handler = NULL;
-    kp->fault_handler = NULL;
-    kp->break_handler = NULL;
-}
+static void set_kprobe(struct kprobe *kp, unsigned long addr);
 
 static struct record_head *
 record_find(unsigned long addr)
@@ -62,9 +50,18 @@ record_add(unsigned long addr)
         pr_err("address %lx exists\n", addr);
         return EEXIST;
     } else {
+        int ret;
         struct record_head *new = kmalloc(sizeof(struct record_head), GFP_KERNEL);
         new->addr = addr;
-        set_kprobe(&new->kprobe);
+        new->count = 0;
+        set_kprobe(&new->kprobe, addr);
+        ret = register_kprobe(&new->kprobe);
+        if (ret < 0) {
+            pr_err("[%d]failed to register_kprobe at %lx\n", ret, addr);
+            kfree(new);
+            return ret;
+        }
+
         INIT_LIST_HEAD(&new->list);
         list_add(&new->list, &record_list);
         return 0;
@@ -72,16 +69,23 @@ record_add(unsigned long addr)
 }
 
 static int
-record_remove(unsigned long addr)
+record_remove(struct record_head *r)
+{
+    list_del(&r->list);
+    unregister_kprobe(&r->kprobe);
+    kfree(r);
+    return 0;
+}
+
+static int
+record_remove_by_addr(unsigned long addr)
 {
     struct record_head *r = record_find(addr);
     if (!r) {
         pr_err("address %lx not exists\n", addr);
         return -EINVAL;
     } else {
-        list_del(&r->list);
-        kfree(r);
-        return 0;
+        return record_remove(r);
     }
 }
 
@@ -90,7 +94,7 @@ proc_show(struct seq_file *m, void *v)
 {
     char *buf = kmalloc(KSYM_SYMBOL_LEN, GFP_KERNEL);
     if (!buf) {
-        pr_err("failed to allocate memory\n", addr);
+        pr_err("failed to allocate memory\n");
         return -ENOMEM;
     }
 
@@ -102,10 +106,9 @@ proc_show(struct seq_file *m, void *v)
             next = p->next;
             r = list_entry(p, struct record_head, list);
             if (!sprint_symbol_no_offset(buf, r->addr) || !buf[0]) {
-                list_del(p);
-                kfree(list_entry(p, struct record_head, list));
+                record_remove(r);
             } else {
-                seq_printf(m, "%lx %s\n", r->addr, buf);
+                seq_printf(m, "%lx %s [%u]\n", r->addr, buf, r->count);
             }
             p = next;
         } while (p != &record_list);
@@ -113,6 +116,24 @@ proc_show(struct seq_file *m, void *v)
 
     kfree(buf);
 	return 0;
+}
+
+static int
+handler_pre(struct kprobe *kprobe, struct pt_regs* _)
+{
+    struct record_head *r = record_find((unsigned long)kprobe->addr);
+    if (r) {
+        r->count += 1;
+    }
+    return 0;
+}
+
+void
+set_kprobe(struct kprobe *kp, unsigned long addr)
+{
+    memset(kp, 0, sizeof(*kp));
+    kp->pre_handler = &handler_pre;
+    kp->addr = (kprobe_opcode_t*)addr;
 }
 
 static int
@@ -141,7 +162,7 @@ deregister_func_by_name(const char* name)
         pr_warning("%s is not a valid kernel name\n", name);
         return -EINVAL;
     } else {
-        return record_remove(addr);
+        return record_remove_by_addr(addr);
     }
 }
 
@@ -166,11 +187,11 @@ proc_write(struct file *file, const char *inbuf, size_t len, loff_t* off)
     char *b = kmalloc(len+1, GFP_KERNEL);
     int r;
     if (!b) {
-        pr_err("failed to allocate memory\n", addr);
+        pr_err("failed to allocate memory\n");
         return -ENOMEM;
     }
     if (copy_from_user(b, inbuf, len)) {
-        pr_err("failed to copy from userland memory\n", addr);
+        pr_err("failed to copy from userland memory\n");
         r = - EFAULT;
         goto end;
     }
@@ -214,7 +235,7 @@ module_cleanup_func(void)
         struct list_head *next;
         do {
             next = p->next;
-            kfree(list_entry(p, struct record_head, list));
+            record_remove(list_entry(p, struct record_head, list));
             p = next;
         } while (p != &record_list);
     }
