@@ -9,6 +9,7 @@
 #include <linux/kallsyms.h>
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/kprobe.h>
 #include <asm/uaccess.h>
 
 static char proc_entry_name[] = "hello";
@@ -17,9 +18,25 @@ static const unsigned int perm = 0644;
 struct record_head {
     struct list_head list;
     unsigned long addr;
+    struct kprobe kprobe;
 };
 
 struct list_head record_list;
+
+static int
+pre_handler(struct kprobe *kprobe, struct pt_regs*)
+{
+
+}
+
+static void
+set_kprobe(struct kprobe *kp)
+{
+    kp->pre_handler = &pre_handler;
+    kp->post_handler = NULL;
+    kp->fault_handler = NULL;
+    kp->break_handler = NULL;
+}
 
 static struct record_head *
 record_find(unsigned long addr)
@@ -42,10 +59,12 @@ static int
 record_add(unsigned long addr)
 {
     if (record_find(addr)) {
+        pr_err("address %lx exists\n", addr);
         return EEXIST;
     } else {
         struct record_head *new = kmalloc(sizeof(struct record_head), GFP_KERNEL);
         new->addr = addr;
+        set_kprobe(&new->kprobe);
         INIT_LIST_HEAD(&new->list);
         list_add(&new->list, &record_list);
         return 0;
@@ -57,6 +76,7 @@ record_remove(unsigned long addr)
 {
     struct record_head *r = record_find(addr);
     if (!r) {
+        pr_err("address %lx not exists\n", addr);
         return -EINVAL;
     } else {
         list_del(&r->list);
@@ -69,8 +89,10 @@ static int
 proc_show(struct seq_file *m, void *v)
 {
     char *buf = kmalloc(KSYM_SYMBOL_LEN, GFP_KERNEL);
-    if (!buf)
+    if (!buf) {
+        pr_err("failed to allocate memory\n", addr);
         return -ENOMEM;
+    }
 
     if (!list_empty(&record_list)) {
         struct record_head *r;
@@ -103,20 +125,24 @@ static int
 register_func_by_name(const char *name)
 {
     unsigned long addr = kallsyms_lookup_name(name);
-    if (!addr)
+    if (!addr) {
+        pr_warning("%s is not a valid kernel name\n", name);
         return -EINVAL;
-    else
+    } else {
         return record_add(addr);
+    }
 }
 
 static int
 deregister_func_by_name(const char* name)
 {
     unsigned long addr = kallsyms_lookup_name(name);
-    if (!addr)
+    if (!addr) {
+        pr_warning("%s is not a valid kernel name\n", name);
         return -EINVAL;
-    else
+    } else {
         return record_remove(addr);
+    }
 }
 
 static int
@@ -125,11 +151,10 @@ write_dispatcher(const char *name)
     if (isalpha(name[0])) {
         return register_func_by_name(name);
     } else if (name[0] == '-'){
-        if (isalpha(name[1])) {
+        if (isalpha(name[1]))
             return deregister_func_by_name(name+1);
-        } else {
+        else
             return -EINVAL;
-        }
     } else {
         return -EINVAL;
     }
@@ -141,9 +166,11 @@ proc_write(struct file *file, const char *inbuf, size_t len, loff_t* off)
     char *b = kmalloc(len+1, GFP_KERNEL);
     int r;
     if (!b) {
+        pr_err("failed to allocate memory\n", addr);
         return -ENOMEM;
     }
     if (copy_from_user(b, inbuf, len)) {
+        pr_err("failed to copy from userland memory\n", addr);
         r = - EFAULT;
         goto end;
     }
