@@ -58,7 +58,7 @@ record_add(unsigned long addr)
 {
     int ret;
     if (record_find(addr)) {
-        pr_err("address %lx exists\n", addr);
+        pr_err("%s: address %lx exists\n", proc_entry_name, addr);
         ret = EEXIST;
     } else {
         struct record_head *new = kmalloc(sizeof(struct record_head), GFP_KERNEL);
@@ -67,7 +67,7 @@ record_add(unsigned long addr)
         set_kprobe(&new->kprobe, addr);
         ret = register_kprobe(&new->kprobe);
         if (ret < 0) {
-            pr_err("[%d]failed to register_kprobe at %lx\n", ret, addr);
+            pr_err("%s: [%d]failed to register_kprobe at %lx\n", proc_entry_name, ret, addr);
             kfree(new);
         } else {
             INIT_LIST_HEAD(&new->list);
@@ -96,7 +96,7 @@ record_remove_by_addr(unsigned long addr)
 {
     struct record_head *r = record_find(addr);
     if (!r) {
-        pr_err("address %lx not exists\n", addr);
+        pr_err("%s: address %lx not exists\n", proc_entry_name, addr);
         return -EINVAL;
     } else {
         return record_remove(r);
@@ -108,7 +108,7 @@ proc_show(struct seq_file *m, void *v)
 {
     char *buf = kmalloc(KSYM_SYMBOL_LEN, GFP_KERNEL);
     if (!buf) {
-        pr_err("failed to allocate memory\n");
+        pr_err("%s: failed to allocate memory\n", proc_entry_name);
         return -ENOMEM;
     }
 
@@ -165,7 +165,7 @@ register_func_by_name(const char *name)
 {
     unsigned long addr = kallsyms_lookup_name(name);
     if (!addr) {
-        pr_warning("%s is not a valid kernel name\n", name);
+        pr_warning("%s: %s is not a valid kernel name\n", proc_entry_name, name);
         return -EINVAL;
     } else {
         return record_add(addr);
@@ -177,7 +177,7 @@ deregister_func_by_name(const char* name)
 {
     unsigned long addr = kallsyms_lookup_name(name);
     if (!addr) {
-        pr_warning("%s is not a valid kernel name\n", name);
+        pr_warning("%s: %s is not a valid kernel name\n", proc_entry_name, name);
         return -EINVAL;
     } else {
         return record_remove_by_addr(addr);
@@ -205,11 +205,11 @@ proc_write(struct file *file, const char *inbuf, size_t len, loff_t* off)
     char *b = kmalloc(len+1, GFP_KERNEL);
     int r;
     if (!b) {
-        pr_err("failed to allocate memory\n");
+        pr_err("%s: failed to allocate memory\n", proc_entry_name);
         return -ENOMEM;
     }
     if (copy_from_user(b, inbuf, len)) {
-        pr_err("failed to copy from userland memory\n");
+        pr_err("%s: failed to copy from userland memory\n", proc_entry_name);
         r = - EFAULT;
         goto end;
     }
@@ -238,7 +238,7 @@ static const struct file_operations proc_class = {
 static int __init
 module_init_func(void)
 {
-    printk("init proc: %s\n", proc_entry_name);
+    printk("%s: init proc\n", proc_entry_name);
     INIT_LIST_HEAD(&record_list);
 	proc_create(proc_entry_name, perm, NULL, &proc_class);
 	return 0;
@@ -257,7 +257,7 @@ module_cleanup_func(void)
             p = next;
         } while (p != &record_list);
     }
-    printk("cleanup proc: %s\n", proc_entry_name);
+    printk("%s: cleanup proc\n", proc_entry_name);
 }
 
 module_init(module_init_func);
