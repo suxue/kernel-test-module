@@ -8,12 +8,18 @@
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
 #include <linux/list.h>
+#include <linux/spinlock_types.h>
 #include <linux/ctype.h>
 #include <linux/kprobes.h>
 #include <asm/uaccess.h>
 
 static char proc_entry_name[] = "hello";
 static const unsigned int perm = 0644;
+static DEFINE_SPINLOCK(the_lock);
+static unsigned long the_lock_flags;
+
+#define LOCK() spin_lock_irqsave(&the_lock, the_lock_flags)
+#define UNLOCK() spin_unlock_irqrestore(&the_lock, the_lock_flags)
 
 struct record_head {
     struct list_head list;
@@ -29,28 +35,32 @@ static void set_kprobe(struct kprobe *kp, unsigned long addr);
 static struct record_head *
 record_find(unsigned long addr)
 {
-    if (list_empty(&record_list)) {
-        return NULL;
-    } else {
+    struct record_head *ret = NULL;
+    LOCK();
+    if (!list_empty(&record_list)) {
         struct list_head *p;
         struct record_head *r;
         list_for_each(p, &record_list) {
             r = list_entry(p, struct record_head, list);
-            if (r->addr == addr)
-                return r;
+            if (r->addr == addr) {
+                ret = r;
+                goto end;
+            }
         }
-        return NULL;
     }
+end:
+    UNLOCK();
+    return ret;
 }
 
 static int
 record_add(unsigned long addr)
 {
+    int ret;
     if (record_find(addr)) {
         pr_err("address %lx exists\n", addr);
-        return EEXIST;
+        ret = EEXIST;
     } else {
-        int ret;
         struct record_head *new = kmalloc(sizeof(struct record_head), GFP_KERNEL);
         new->addr = addr;
         new->count = 0;
@@ -59,19 +69,23 @@ record_add(unsigned long addr)
         if (ret < 0) {
             pr_err("[%d]failed to register_kprobe at %lx\n", ret, addr);
             kfree(new);
-            return ret;
+        } else {
+            INIT_LIST_HEAD(&new->list);
+            LOCK();
+            list_add(&new->list, &record_list);
+            UNLOCK();
+            ret = 0;
         }
-
-        INIT_LIST_HEAD(&new->list);
-        list_add(&new->list, &record_list);
-        return 0;
     }
+    return ret;
 }
 
 static int
 record_remove(struct record_head *r)
 {
+    LOCK();
     list_del(&r->list);
+    UNLOCK();
     unregister_kprobe(&r->kprobe);
     kfree(r);
     return 0;
@@ -98,6 +112,7 @@ proc_show(struct seq_file *m, void *v)
         return -ENOMEM;
     }
 
+    LOCK();
     if (!list_empty(&record_list)) {
         struct record_head *r;
         struct list_head *p = record_list.next;
@@ -113,6 +128,7 @@ proc_show(struct seq_file *m, void *v)
             p = next;
         } while (p != &record_list);
     }
+    UNLOCK();
 
     kfree(buf);
 	return 0;
@@ -123,7 +139,9 @@ handler_pre(struct kprobe *kprobe, struct pt_regs* _)
 {
     struct record_head *r = record_find((unsigned long)kprobe->addr);
     if (r) {
+        LOCK();
         r->count += 1;
+        UNLOCK();
     }
     return 0;
 }
