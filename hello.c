@@ -1,3 +1,8 @@
+#include <generated/autoconf.h>
+#ifndef CONFIG_KPROBES
+#error "CONFIG_KPROBES is undefined in your kernel's configuration"
+#endif
+
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
@@ -11,12 +16,19 @@
 #include <linux/spinlock_types.h>
 #include <linux/ctype.h>
 #include <linux/kprobes.h>
+#include <linux/moduleparam.h>
 #include <asm/uaccess.h>
 
-static char proc_entry_name[] = "hello";
-static const unsigned int perm = 0644;
+static char *proc_entry_name = "record";
+static unsigned int perm = 0644;
 static DEFINE_SPINLOCK(the_lock);
 static unsigned long the_lock_flags;
+
+module_param(proc_entry_name, charp, 0000);
+MODULE_PARM_DESC(proc_entry_name, "exposed filename under /proc");
+
+module_param(perm, uint, 0000);
+MODULE_PARM_DESC(perm, "permission of the file under /proc");
 
 #define LOCK() spin_lock_irqsave(&the_lock, the_lock_flags)
 #define UNLOCK() spin_unlock_irqrestore(&the_lock, the_lock_flags)
@@ -264,3 +276,4 @@ module_init(module_init_func);
 module_exit(module_cleanup_func);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Hao Fei");
