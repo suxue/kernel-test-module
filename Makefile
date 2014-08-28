@@ -1,1 +1,2 @@
-obj-m += hello.o
+obj-m += record.o
+CFLAGS_record.o = -O0
