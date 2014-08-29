@@ -1,5 +1,7 @@
 /* vim: set noexpandtab tabstop=8 softtabstop=8 shiftwidth=8:
-author: Hao Fei(u5074277)
+ *
+ * author: Hao Fei(u5074277)
+ *
 a short summary of the information your proc entry provides,
 a short summary of how the kernel stores this information, and
 a short summary of how your solution works and any issues that you dealt with.
@@ -86,8 +88,8 @@ static int record_add(unsigned long addr)
 		set_kprobe(&new->kprobe, addr);
 		ret = register_kprobe(&new->kprobe);
 		if (ret < 0) {
-			pr_err("%s: [%d]failed to register_kprobe at %lx\n",
-					proc_entry_name, ret, addr);
+			pr_err("%s: [%d].failed to register_kprobe at %lx\n",
+					proc_entry_name, -ret, addr);
 			kfree(new);
 		} else {
 			INIT_LIST_HEAD(&new->list);
@@ -197,7 +199,7 @@ static int deregister_func_by_name(const char *name)
 
 static int write_dispatcher(const char *name)
 {
-	if (isalpha(name[0]))
+	if (isalpha(name[0]) || name[0] == '_')
 		return register_func_by_name(name);
 	else if (name[0] == '-') {
 		if (isalpha(name[1]))
@@ -247,7 +249,7 @@ static const struct file_operations proc_class = {
 
 static int __init module_init_func(void)
 {
-	printk("%s: init proc\n", proc_entry_name);
+	pr_info("%s: init proc\n", proc_entry_name);
 	INIT_LIST_HEAD(&record_list);
 	proc_create(proc_entry_name, perm, NULL, &proc_class);
 	return 0;
@@ -265,12 +267,10 @@ static void __exit module_cleanup_func(void)
 			p = next;
 		} while (p != &record_list);
 	}
-	printk("%s: cleanup proc\n", proc_entry_name);
+	pr_info("%s: cleanup proc\n", proc_entry_name);
 }
 
 module_init(module_init_func);
 module_exit(module_cleanup_func);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Hao Fei");
-
