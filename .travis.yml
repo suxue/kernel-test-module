@@ -1,8 +1,8 @@
 language: c
 before_script:
-    - sudo add-apt-repository -y ppa:serge-hallyn/qemu-p-migration
+    - sudo add-apt-repository -y ppa:ubuntu-virt/ppa
     - sudo apt-get update
-    - sudo apt-get install qemu screen
+    - sudo apt-get install qemu-kvm screen
 script:
     - qemu-system-x86_64 --version
     - ./run_vm
