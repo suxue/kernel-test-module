@@ -1,8 +1,11 @@
 language: c
 before_script:
-    - sudo add-apt-repository -y ppa:ubuntu-virt/ppa
-    - sudo apt-get update
-    - sudo apt-get install qemu-kvm screen
+    - sudo apt-get install libglib2.0-dev libsdl1.2-dev libjpeg-dev libvde-dev libvdeplug2-dev libbrlapi-dev libaio-dev libfdt-dev texi2html texinfo info2man pod2pdf libnss3-dev libcap-dev libattr1-dev gcc-4.6-multilib
+    - sudo apt-get install screen
+    - wget http://wiki.qemu-project.org/download/qemu-1.5.0.tar.bz2 -O - | tar xvf -
+    - cd qemu-1.5.0/
+    - ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu && make && sudo make install
+    - cd ..
 script:
     - qemu-system-x86_64 --version
     - ./run_vm
