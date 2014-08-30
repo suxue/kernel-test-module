@@ -10,4 +10,11 @@ SMP=1
 ACCEL_FLAGS=
 EOF
 
-screen -d -m ./boot.sh
+source `pwd`/config.sh
+
+qemu-system-x86_64   -drive file=$IMAGE_FILE,if=$HD_DRV \
+-net nic,model=$NET_DRV \
+-net user,hostfwd=::$REDIR_PORT-10.0.2.1:22 \
+-s -m $MEM_SIZE  -cpu $CPU_TYPE -smp $SMP \
+-nodefaults -display none -vga none  -serial stdio -daemonize -pidfile \
+$PID_FILE  2>&1
