@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cd image/
+cat >> config.sh <<EOF
+NET_DRV=e1000
+HD_DRV=ide
+MEM_SIZE=128m
+CPU_TYPE=qemu64
+SMP=1
+ACCEL_FLAGS=
+EOF
+
+screen -d -m ./boot.sh
