@@ -1,0 +1,11 @@
+.built-in.o.cmd
+.hello.ko.cmd
+.hello.mod.o.cmd
+.hello.o.cmd
+.record.ko.cmd
+.record.mod.o.cmd
+.record.o.cmd
+.tmp_versions/
+Module.symvers
+modules.order
+record.mod.c
