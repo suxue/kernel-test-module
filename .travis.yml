@@ -1,0 +1,8 @@
+language: c
+before_script:
+    - apt-get install qemu-systems screen
+script:
+    - cd image/; sceen -d -m ./boot.sh; cd ..
+    - sleep 5
+    - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+    - ssh qemu 'zcat /proc/config.gz'
