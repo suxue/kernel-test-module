@@ -21,7 +21,7 @@ script:
     - scp linux-3.13.1/arch/x86/boot/bzImage qemu:/boot
     - cat record.ko | ssh qemu 'cat > record.ko'
     - ssh qemu 'reboot'
-    - sleep 5
+    - while sleep 1; do ssh qemu 'true' && break; done
     - ssh qemu 'insmod  record.ko'
     - ssh qemu 'rmmod record.ko'
     - ssh qemu 'demsg'
