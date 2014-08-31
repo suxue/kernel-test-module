@@ -23,4 +23,4 @@ script:
     - ssh qemu 'reboot'
     - ssh qemu 'insmod  record.ko'
     - ssh qemu 'rmmod record.ko'
-      ssh qemu 'demsg'
+    - ssh qemu 'demsg'
