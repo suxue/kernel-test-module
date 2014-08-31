@@ -2,4 +2,5 @@
 
 cd image/
 ls
-./boot.sh NET_DRV=e1000 HD_DRV=ide MEM_SIZE=128m CPU_TYPE=qemu64 SMP=1 ACCEL_FLAGS= SERIAL=stdio </dev/null
+cat boot.sh
+sh ./boot.sh NET_DRV=e1000 HD_DRV=ide MEM_SIZE=128m CPU_TYPE=qemu64 SMP=1 ACCEL_FLAGS= SERIAL=stdio </dev/null
