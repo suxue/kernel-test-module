@@ -15,7 +15,7 @@ script:
     - sleep 5
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
     - ssh qemu 'zcat /proc/config.gz' | tee linux-3.13.1/.config
-    - yes | make -C linux-3.13.1 oldconfig
+    - yes '' | make -C linux-3.13.1 oldconfig
     - make -C linux-3.13.1
     - make -C linux-3.13.1 M=`pwd`
     - scp linux-3.13.1/arch/x86/boot/bzImage qemu:/boot
