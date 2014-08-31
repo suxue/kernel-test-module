@@ -2,13 +2,24 @@ language: c
 before_script:
     - sudo apt-get install libglib2.0-dev libsdl1.2-dev libjpeg-dev libvde-dev libvdeplug2-dev libbrlapi-dev libaio-dev libfdt-dev texi2html texinfo info2man pod2pdf libnss3-dev libcap-dev libattr1-dev gcc-4.6-multilib
     - sudo apt-get install screen
-    - wget http://wiki.qemu-project.org/download/qemu-1.5.0.tar.bz2 -O - | tar xvjf -
+    - wget http://wiki.qemu-project.org/download/qemu-1.5.0.tar.bz2 -O - | tar xjf -
     - cd qemu-1.5.0/
     - ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu && make && sudo make install
     - cd ..
+    - wget https://www.kernel.org/pub/linux/kernel/v3.x/linux-3.13.1.tar.gz
+    - tar xf linux-3.13.1.tar.gz
+    - make -C linux-3.13.1 mrproper
 script:
     - qemu-system-x86_64 --version
     - ./run_vm
     - sleep 5
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-    - ssh qemu 'zcat /proc/config.gz'
+    - ssh qemu 'zcat /proc/config.gz' | tee linux-3.13.1/.config
+    - yes | make -C linux-3.13.1 oldconfig
+    - make -C linux-3.13.1
+    - make -C linux-3.13.1 M=`pwd`
+    - scp linux-3.13.1/arch/x86/boot/bzImage qemu:/boot
+    - scp record.ko qemu:
+    - ssh qemu 'insmod  record.ko'
+    - ssh qemu 'rmmod record.ko'
+    - ssh qemu 'demsg'
