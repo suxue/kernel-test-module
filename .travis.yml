@@ -5,12 +5,12 @@ before_script:
     - wget http://wiki.qemu-project.org/download/qemu-1.5.0.tar.bz2 -O - | tar xjf -
     - cd qemu-1.5.0/
     - ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu && make && sudo make install
+    - qemu-system-x86_64 --version
     - cd ..
     - wget https://www.kernel.org/pub/linux/kernel/v3.x/linux-3.13.1.tar.gz
     - tar xf linux-3.13.1.tar.gz
     - make -C linux-3.13.1 mrproper
 script:
-    - qemu-system-x86_64 --version
     - ./run_vm &
     - sleep 5
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
