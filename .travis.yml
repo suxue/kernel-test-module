@@ -19,8 +19,9 @@ script:
     - make -C linux-3.13.1
     - make -C linux-3.13.1 M=`pwd`
     - scp linux-3.13.1/arch/x86/boot/bzImage qemu:/boot
-    - scp record.ko qemu:
+    - cat record.ko | ssh qemu 'cat > record.ko'
     - ssh qemu 'reboot'
+    - sleep 5
     - ssh qemu 'insmod  record.ko'
     - ssh qemu 'rmmod record.ko'
     - ssh qemu 'demsg'
