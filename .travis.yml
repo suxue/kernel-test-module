@@ -1,5 +1,6 @@
 language: c
 before_script:
+    - ls image/
     - sudo apt-get install libglib2.0-dev libsdl1.2-dev libjpeg-dev libvde-dev libvdeplug2-dev libbrlapi-dev libaio-dev libfdt-dev texi2html texinfo info2man pod2pdf libnss3-dev libcap-dev libattr1-dev gcc-4.6-multilib bc
     - sudo apt-get install screen
     - wget http://wiki.qemu-project.org/download/qemu-1.5.0.tar.bz2 -O - | tar xjf -
