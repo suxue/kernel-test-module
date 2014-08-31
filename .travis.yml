@@ -11,7 +11,7 @@ before_script:
     - make -C linux-3.13.1 mrproper
 script:
     - qemu-system-x86_64 --version
-    - ./run_vm
+    - cd image; ./boot.sh NET_DRV=e1000 HD_DRV=ide MEM_SIZE=128m CPU_TYPE=qemu64 SMP=1 ACCEL_FLAGS= SERIAL=stdio </dev/null &; cd ..
     - sleep 5
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
     - ssh qemu 'zcat /proc/config.gz' | tee linux-3.13.1/.config
