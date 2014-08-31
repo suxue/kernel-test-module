@@ -15,7 +15,7 @@ script:
     - ./run_vm &
     - sleep 5
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-    - ssh qemu 'zcat /proc/config.gz' | tee linux-3.13.1/.config
+    - ssh qemu 'zcat /proc/config.gz' > linux-3.13.1/.config
     - yes '' | make -C linux-3.13.1 oldconfig
     - time make -C linux-3.13.1
     - make -C linux-3.13.1 M=`pwd`
