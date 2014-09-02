@@ -1,10 +1,39 @@
-/* vim: set noexpandtab tabstop=8 softtabstop=8 shiftwidth=8:
+/*
+ * ## Intro ##
  *
- * author: Hao Fei(u5074277)
+ * 'record' is a loadable kernel module.
+ * It exports a proc device interface (/proc/record) to the userland,
+ * which can be easily accessed by normal shell utilities like echo and
+ * cat.
  *
-a short summary of the information your proc entry provides,
-a short summary of how the kernel stores this information, and
-a short summary of how your solution works and any issues that you dealt with.
+ * ## Usage ##
+ *
+ * The semantic is simple, write a kernel symbol name into this file will
+ * register a kprobe to trace how many times it is hit by afterwards
+ * execution. write a char '-' followed by a kernel symbol will
+ * de-register that kprobe if exists.
+ *
+ * For example:
+ *	$ echo Sys_rmdir > /proc/record
+ *	$ cat /proc/record
+ *		ffffffff810fc9fc SyS_rmdir [0]
+ *	$ echo '-sys_rmdir' > /proc/record
+ *	$ wc -c  /proc/record
+ *		0 /proc/record
+ *
+ * ## Implementation ##
+ *
+ * All kernel names are converted to address (or unsigned long) through
+ * call to kallsyms_* functionsA, entries are stored in a linked list
+ * which in turn is protected by a spinlock. Each entry contains the long
+ * integer represents a symbol and corresponding kprobe structure.
+ *
+ * ## Issues ##
+ *
+ * This module generally works well, but not all symbols listed under
+ * /proc/kallsyms are successfully registered through kprobe. And because
+ * kernel functions may run under the interrupt context, spin_lock_irq* are
+ * employed which has higher runtime overhead compared to spin_lock_*
 */
 
 #include <generated/autoconf.h>
@@ -274,3 +303,4 @@ module_init(module_init_func);
 module_exit(module_cleanup_func);
 
 MODULE_LICENSE("GPL");
+/* vim: set noexpandtab tabstop=8 softtabstop=8 shiftwidth=8: */
