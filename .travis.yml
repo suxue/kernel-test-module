@@ -4,7 +4,7 @@ before_script:
     - sudo apt-get install screen
     - wget http://wiki.qemu-project.org/download/qemu-1.5.0.tar.bz2 -O - | tar xjf -
     - cd qemu-1.5.0/
-    - ( ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu --disable-strip --disable-xen  --disable-kvm --disable-user --disable-docs  && make && sudo make install ) >/dev/null
+    - ( ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu --disable-strip --disable-xen  --disable-kvm --disable-user --disable-docs  && make -j2 && sudo make install ) >/dev/null
     - cd ..
     - wget https://www.kernel.org/pub/linux/kernel/v3.x/linux-3.13.1.tar.gz
     - tar xf linux-3.13.1.tar.gz
@@ -15,8 +15,8 @@ script:
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
     - ssh -q qemu 'zcat /proc/config.gz' > linux-3.13.1/.config
     - yes '' | make -C linux-3.13.1 oldconfig >/dev/null
-    - make -C linux-3.13.1 >/dev/null
-    - make -C linux-3.13.1 M=`pwd`
+    - make -j2 -C linux-3.13.1
+    - make -j2 -C linux-3.13.1 M=`pwd`
     - scp linux-3.13.1/arch/x86/boot/bzImage qemu:/boot
     - cat record.ko | ssh qemu 'cat > record.ko'
     - ssh qemu 'reboot'
