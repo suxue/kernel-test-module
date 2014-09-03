@@ -6,26 +6,25 @@ env:
 before_script:
     - export QEMU=1.5.0
     - export JOBS=3
-    - sudo apt-get install libglib2.0-dev libsdl1.2-dev libjpeg-dev libvde-dev libvdeplug2-dev libbrlapi-dev libaio-dev libfdt-dev texi2html texinfo info2man pod2pdf libnss3-dev libcap-dev libattr1-dev gcc-4.6-multilib bc
-    - sudo apt-get install screen
+    - sudo apt-get install libglib2.0-dev libjpeg-dev libvde-dev libvdeplug2-dev libbrlapi-dev libaio-dev libfdt-dev pod2pdf libnss3-dev libcap-dev libattr1-dev bc screen
     - wget http://wiki.qemu-project.org/download/qemu-${QEMU}.tar.bz2 -O - | tar xjf -
     - cd qemu-${QEMU}/
-    - ( ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu --disable-strip --disable-xen  --disable-kvm --disable-user --disable-docs  && make -j$JOBS && sudo make install ) >/dev/null
+    - ./configure --prefix=/usr --disable-sdl --enable-linux-aio --target-list=x86_64-softmmu --disable-strip --disable-xen  --disable-kvm --disable-user --disable-docs  && make -j$JOBS && sudo make install
     - cd ..
     - wget https://www.kernel.org/pub/linux/kernel/v3.x/linux-${KERNEL}.tar.gz
     - tar xf linux-${KERNEL}.tar.gz
     - make -C linux-${KERNEL} mrproper
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
     - ./run_vm &
-    - while sleep 1; do ssh qemu 'true' 2>&1 >/dev/null && break; done
+    - while sleep 1; do ssh qemu 'true' 2>&1 && break; done
     - ssh -q qemu 'zcat /proc/config.gz' > linux-${KERNEL}/.config
-    - yes '' | make -C linux-${KERNEL} oldconfig >/dev/null
+    - yes '' | make -C linux-${KERNEL} oldconfig
     - make -j$JOBS -C linux-${KERNEL}
     - scp linux-${KERNEL}/arch/x86/boot/bzImage qemu:/boot
 script:
-    - make -j$JOBS -C linux-$[KERNEL} M=`pwd`
+    - make -j$JOBS -C linux-${KERNEL} M=`pwd`
     - cat record.ko | ssh qemu 'cat > record.ko'
     - ssh qemu 'reboot'
-    - while sleep 1; do ssh qemu 'true' 2>&1 >/dev/null && break; done
+    - while sleep 1; do ssh qemu 'true' && break; done
     - ssh qemu 'insmod record.ko'
     - ssh qemu 'rmmod record.ko'
