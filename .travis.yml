@@ -1,4 +1,8 @@
 language: c
+env:
+    KERNEL=3.8
+    KERNEL=3.10
+    KERNEL=3.14
 before_script:
     - export JOBS=3
     - sudo apt-get install libglib2.0-dev libsdl1.2-dev libjpeg-dev libvde-dev libvdeplug2-dev libbrlapi-dev libaio-dev libfdt-dev texi2html texinfo info2man pod2pdf libnss3-dev libcap-dev libattr1-dev gcc-4.6-multilib bc
@@ -7,18 +11,18 @@ before_script:
     - cd qemu-1.5.0/
     - ( ./configure --prefix=/usr --enable-linux-aio --target-list=x86_64-softmmu --disable-strip --disable-xen  --disable-kvm --disable-user --disable-docs  && make -j$JOBS && sudo make install ) >/dev/null
     - cd ..
-    - wget https://www.kernel.org/pub/linux/kernel/v3.x/linux-3.13.1.tar.gz
-    - tar xf linux-3.13.1.tar.gz
-    - make -C linux-3.13.1 mrproper
-script:
-    - ./run_vm &
-    - sleep 5
+    - wget https://www.kernel.org/pub/linux/kernel/v3.x/linux-${KERNEL}.tar.gz
+    - tar xf linux-${KERNEL}.tar.gz
+    - make -C linux-${KERNEL} mrproper
     - printf "Host qemu\n\tHostname 127.0.0.1\n\tPort 60022\n\tUser root\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-    - ssh -q qemu 'zcat /proc/config.gz' > linux-3.13.1/.config
-    - yes '' | make -C linux-3.13.1 oldconfig >/dev/null
-    - make -j$JOBS -C linux-3.13.1
-    - make -j$JOBS -C linux-3.13.1 M=`pwd`
-    - scp linux-3.13.1/arch/x86/boot/bzImage qemu:/boot
+    - ./run_vm &
+    - while sleep 1; do ssh qemu 'true' 2>&1 >/dev/null && break; done
+    - ssh -q qemu 'zcat /proc/config.gz' > linux-${KERNEL}/.config
+    - yes '' | make -C linux-${KERNEL} oldconfig >/dev/null
+    - make -j$JOBS -C linux-${KERNEL}
+    - scp linux-${KERNEL}/arch/x86/boot/bzImage qemu:/boot
+script:
+    - make -j$JOBS -C linux-$[KERNEL} M=`pwd`
     - cat record.ko | ssh qemu 'cat > record.ko'
     - ssh qemu 'reboot'
     - while sleep 1; do ssh qemu 'true' 2>&1 >/dev/null && break; done
